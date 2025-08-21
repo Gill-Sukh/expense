@@ -3,6 +3,8 @@ import Head from 'next/head';
 import { Plus, TrendingUp, TrendingDown, DollarSign, Calendar, CreditCard, X, Minus, LogOut, User } from 'lucide-react';
 import BottomNav from './BottomNav';
 import Chart from './Chart';
+import ConfirmModal from './ConfirmModal';
+import TransactionModal from './TransactionModal';
 import { formatCurrency } from '../lib/utils';
 import { Expense, Income, PaymentAccount, DashboardStats, EMI } from '../lib/types';
 import { useAuth } from '../contexts/AuthContext';
@@ -24,6 +26,15 @@ export default function Dashboard() {
   const [addType, setAddType] = useState<'expense' | 'income'>('expense');
   const [isEditing, setIsEditing] = useState(false);
   const [editingId, setEditingId] = useState<string>('');
+  const [toast, setToast] = useState<{ show: boolean; message: string; type: 'success' | 'error' }>({
+    show: false,
+    message: '',
+    type: 'success'
+  });
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<{ type: 'delete-expense' | 'delete-emi' | 'delete-account'; id: string; name: string } | null>(null);
+  const [showTransactionModal, setShowTransactionModal] = useState(false);
+  const [selectedTransaction, setSelectedTransaction] = useState<Expense | Income | null>(null);
   const [formData, setFormData] = useState({
     amount: '',
     category: '',
@@ -44,6 +55,10 @@ export default function Dashboard() {
       fetchData();
     }
   }, [userId]);
+
+  useEffect(() => {
+    console.log('Accounts:', accounts);
+  }, [accounts]);
 
   const fetchData = async () => {
     try {
@@ -77,6 +92,13 @@ export default function Dashboard() {
     const totalExpenses = expensesData.reduce((sum, exp) => sum + exp.amount, 0);
     const totalIncome = incomeData.reduce((sum, inc) => sum + inc.amount, 0);
     
+    // Add EMIs to total expenses
+    const totalEmiAmount = emiData.reduce((sum, emi) => {
+      const remainingMonths = calculateRemainingMonths(emi.startDate, emi.monthsRemaining);
+      return remainingMonths > 0 ? sum + emi.amount : sum;
+    }, 0);
+    const totalExpensesWithEmi = totalExpenses + totalEmiAmount;
+    
     const currentMonth = new Date().getMonth();
     const currentYear = new Date().getFullYear();
     
@@ -106,7 +128,8 @@ export default function Dashboard() {
     // Add EMIs to monthly expenses (they are monthly recurring)
     console.log('EMI data for monthly calculation:', emiData);
     emiData.forEach(emi => {
-      if (emi.monthsRemaining > 0) {
+      const remainingMonths = calculateRemainingMonths(emi.startDate, emi.monthsRemaining);
+      if (remainingMonths > 0) {
         console.log(`Adding EMI ${emi.name} with amount ${emi.amount} to monthly expenses`);
         monthlyExpenses += emi.amount;
       }
@@ -137,9 +160,9 @@ export default function Dashboard() {
     });
 
     setStats({
-      totalExpenses,
+      totalExpenses: totalExpensesWithEmi,
       totalIncome,
-      netAmount: totalIncome - totalExpenses,
+      netAmount: totalIncome - totalExpensesWithEmi,
       monthlyExpenses,
       monthlyIncome,
       monthlyNet: monthlyIncome - monthlyExpenses
@@ -157,7 +180,8 @@ export default function Dashboard() {
     
     // Add EMIs as a separate category
     emis.forEach(emi => {
-      if (emi.monthsRemaining > 0) {
+      const remainingMonths = calculateRemainingMonths(emi.startDate, emi.monthsRemaining);
+      if (remainingMonths > 0) {
         const current = categoryMap.get(`EMI - ${emi.name}`) || 0;
         categoryMap.set(`EMI - ${emi.name}`, current + emi.amount);
       }
@@ -166,7 +190,35 @@ export default function Dashboard() {
     return Array.from(categoryMap.entries()).map(([name, value]) => ({ name, value }));
   };
 
-  const recentExpenses = expenses.slice(0, 5);
+  const recentExpenses = expenses
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    .slice(0, 5);
+
+  const getAccountName = (accountId: string) => {
+    const account = accounts.find(acc => acc._id === accountId);
+    return account ? account.name : '';
+  };
+
+  const calculateRemainingMonths = (startDate: string | Date, totalMonths: number) => {
+    const start = new Date(startDate);
+    const today = new Date();
+    
+    // Calculate how many months have passed since start
+    const monthsPassed = (today.getFullYear() - start.getFullYear()) * 12 + (today.getMonth() - start.getMonth());
+    
+    // Calculate remaining months
+    const remaining = totalMonths - monthsPassed;
+    
+    // Return 0 if EMI is completed, otherwise return remaining months
+    return Math.max(0, remaining);
+  };
+
+  const showToast = (message: string, type: 'success' | 'error') => {
+    setToast({ show: true, message, type });
+    setTimeout(() => {
+      setToast({ show: false, message: '', type: 'success' });
+    }, 3000);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -217,9 +269,14 @@ export default function Dashboard() {
         setIsEditing(false);
         setEditingId('');
         fetchData(); // Refresh data
+        showToast(`${addType === 'expense' ? 'Expense' : 'Income'} added/updated successfully!`, 'success');
+      } else {
+        const errorData = await response.json();
+        showToast(errorData.message || 'Failed to add/update record.', 'error');
       }
     } catch (error) {
       console.error('Error adding/editing record:', error);
+      showToast('An unexpected error occurred.', 'error');
     }
   };
 
@@ -242,20 +299,57 @@ export default function Dashboard() {
   };
 
   const deleteExpense = async (expenseId: string) => {
-    if (window.confirm('Are you sure you want to delete this expense?')) {
-      try {
-        const response = await fetch(`/api/expenses/delete/${expenseId}`, {
-          method: 'DELETE',
-        });
+    setConfirmAction({ type: 'delete-expense', id: expenseId, name: 'expense' });
+    setShowConfirmModal(true);
+  };
 
-        if (response.ok) {
-          fetchData(); // Refresh data
-        } else {
-          console.error('Failed to delete expense');
-        }
-      } catch (error) {
-        console.error('Error deleting expense:', error);
+  const deleteEMI = async (emiId: string) => {
+    setConfirmAction({ type: 'delete-emi', id: emiId, name: 'EMI' });
+    setShowConfirmModal(true);
+  };
+
+  const deleteAccount = async (accountId: string) => {
+    setConfirmAction({ type: 'delete-account', id: accountId, name: 'account' });
+    setShowConfirmModal(true);
+  };
+
+  const handleConfirmAction = async () => {
+    if (!confirmAction) return;
+
+    try {
+      let endpoint: string;
+      
+      switch (confirmAction.type) {
+        case 'delete-expense':
+          endpoint = `/api/expenses/delete/${confirmAction.id}`;
+          break;
+        case 'delete-emi':
+          endpoint = `/api/emi/delete/${confirmAction.id}`;
+          break;
+        case 'delete-account':
+          endpoint = `/api/accounts/delete/${confirmAction.id}`;
+          break;
+        default:
+          throw new Error('Invalid delete type');
       }
+
+      const response = await fetch(endpoint, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      if (response.ok) {
+        setShowConfirmModal(false);
+        setConfirmAction(null);
+        fetchData(); // Refresh data
+        showToast(`${confirmAction.name} deleted successfully!`, 'success');
+      } else {
+        const errorData = await response.json();
+        showToast(errorData.message || `Failed to delete ${confirmAction.name}.`, 'error');
+      }
+    } catch (error) {
+      console.error('Error deleting record:', error);
+      showToast('An unexpected error occurred.', 'error');
     }
   };
 
@@ -291,168 +385,74 @@ export default function Dashboard() {
           </div>
         </div>
 
+        {/* Toast Notification Banner */}
+        {toast.show && (
+          <div className={`w-full py-3 px-4 shadow-lg ${
+            toast.type === 'success' 
+              ? 'bg-gradient-to-r from-green-500 to-emerald-600' 
+              : 'bg-gradient-to-r from-red-500 to-rose-600'
+          } text-white`}>
+            <div className="max-w-md mx-auto flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className={`w-2 h-2 rounded-full animate-pulse ${
+                  toast.type === 'success' ? 'bg-green-200' : 'bg-red-200'
+                }`}></div>
+                <span className="font-medium">{toast.message}</span>
+              </div>
+              <button
+                onClick={() => setToast({ show: false, message: '', type: 'success' })}
+                className="text-white/80 hover:text-white transition-colors p-1 rounded-full hover:bg-white/10"
+              >
+                <X size={16} />
+              </button>
+            </div>
+          </div>
+        )}
+
         <div className="max-w-md mx-auto px-4 py-6 space-y-6">
-          {/* Modern Stats Cards */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-2xl p-5 shadow-lg border border-green-200">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-green-700 mb-1">Monthly Income</p>
-                  <p className="text-2xl font-bold text-green-800">
-                    {formatCurrency(stats.monthlyIncome)}
-                  </p>
-                </div>
-                <div className="bg-green-500 p-3 rounded-full">
-                  <TrendingUp className="text-white" size={20} />
-                </div>
+          {/* Quick Balance Overview */}
+          <div className="bg-gradient-to-br from-blue-600 to-indigo-700 rounded-3xl p-6 text-white shadow-xl">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="text-lg font-medium opacity-90">This Month</h2>
+                <p className="text-3xl font-bold">{formatCurrency(stats.monthlyNet)}</p>
               </div>
-            </div>
-            
-            <div className="bg-gradient-to-br from-red-50 to-red-100 rounded-2xl p-5 shadow-lg border border-red-200">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-red-700 mb-1">Monthly Expenses</p>
-                  <p className="text-2xl font-bold text-red-800">
-                    {formatCurrency(stats.monthlyExpenses)}
-                  </p>
-                </div>
-                <div className="bg-red-500 p-3 rounded-full">
-                  <TrendingDown className="text-white" size={20} />
-                </div>
+              <div className="bg-white/20 p-3 rounded-full backdrop-blur-sm">
+                <Calendar className="text-white" size={24} />
               </div>
-            </div>
-          </div>
-
-          {/* Modern Balance Section */}
-          <div className="bg-gradient-to-br from-blue-50 to-indigo-100 rounded-2xl p-6 shadow-lg border border-blue-200">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="bg-blue-500 p-2 rounded-full">
-                <DollarSign className="text-white" size={20} />
-              </div>
-              <h2 className="text-xl font-bold text-blue-900">Balance Overview</h2>
-            </div>
-            <div className="space-y-4">
-              <div className="flex justify-between items-center p-3 bg-white/60 rounded-xl">
-                <span className="text-blue-700 font-medium">Total Income</span>
-                <span className="font-bold text-green-600 text-lg">{formatCurrency(stats.totalIncome)}</span>
-              </div>
-              <div className="flex justify-between items-center p-3 bg-white/60 rounded-xl">
-                <span className="text-blue-700 font-medium">Total Expenses</span>
-                <span className="font-bold text-red-600 text-lg">{formatCurrency(stats.totalExpenses)}</span>
-              </div>
-              <div className="h-px bg-blue-200"></div>
-              <div className="flex justify-between items-center p-4 bg-white/80 rounded-xl">
-                <span className="text-blue-900 font-bold text-lg">Net Balance</span>
-                <span className={`text-2xl font-bold ${stats.netAmount >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  {formatCurrency(stats.netAmount)}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Modern Monthly Summary */}
-          <div className="bg-gradient-to-br from-purple-500 via-pink-500 to-red-500 rounded-2xl p-6 text-white shadow-xl">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="bg-white/20 p-2 rounded-full backdrop-blur-sm">
-                <Calendar className="text-white" size={20} />
-              </div>
-              <h2 className="text-xl font-bold">This Month</h2>
-            </div>
-            <div className="grid grid-cols-2 gap-4 mb-4">
-              <div className="bg-white/20 p-3 rounded-xl backdrop-blur-sm">
-                <p className="text-sm opacity-90 mb-1">Income</p>
-                <p className="text-xl font-bold">{formatCurrency(stats.monthlyIncome)}</p>
-              </div>
-              <div className="bg-white/20 p-3 rounded-xl backdrop-blur-sm">
-                <p className="text-sm opacity-90 mb-1">Expenses</p>
-                <p className="text-xl font-bold">{formatCurrency(stats.monthlyExpenses)}</p>
-              </div>
-            </div>
-            <div className="bg-white/20 p-3 rounded-xl backdrop-blur-sm">
-              <div className="flex justify-between items-center">
-                <span className="text-sm opacity-90">Net</span>
-                <span className={`text-lg font-bold ${stats.monthlyNet >= 0 ? 'text-green-200' : 'text-red-200'}`}>
-                  {formatCurrency(stats.monthlyNet)}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Modern Quick Actions */}
-          <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl p-6 shadow-lg border border-gray-200">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="bg-gray-500 p-2 rounded-full">
-                <Plus className="text-white" size={20} />
-              </div>
-              <h2 className="text-xl font-bold text-gray-900">Quick Actions</h2>
             </div>
             <div className="grid grid-cols-2 gap-4">
-              <button
-                onClick={() => {
-                  setAddType('expense');
-                  setShowAddModal(true);
-                }}
-                className="flex items-center justify-center p-4 bg-gradient-to-br from-red-500 to-red-600 text-white rounded-xl hover:from-red-600 hover:to-red-700 transition-all duration-200 transform hover:scale-105 shadow-lg"
-              >
-                <Minus size={20} className="mr-2" />
-                <span className="font-semibold">Add Expense</span>
-              </button>
-              <button
-                onClick={() => {
-                  setAddType('income');
-                  setShowAddModal(true);
-                }}
-                className="flex items-center justify-center p-4 bg-gradient-to-br from-green-500 to-green-600 text-white rounded-xl hover:from-green-600 hover:to-green-700 transition-all duration-200 transform hover:scale-105 shadow-lg"
-              >
-                <Plus size={20} className="mr-2" />
-                <span className="font-semibold">Add Income</span>
-              </button>
+              <div className="bg-white/20 p-3 rounded-xl backdrop-blur-sm">
+                <p className="text-sm opacity-80 mb-1">Income</p>
+                <p className="text-lg font-bold">{formatCurrency(stats.monthlyIncome)}</p>
+              </div>
+              <div className="bg-white/20 p-3 rounded-xl backdrop-blur-sm">
+                <p className="text-sm opacity-80 mb-1">Expenses</p>
+                <p className="text-lg font-bold">{formatCurrency(stats.monthlyExpenses)}</p>
+              </div>
             </div>
           </div>
 
-          {/* Modern Expense Chart */}
-          {(expenses.length > 0 || emis.length > 0) && (
-            <div className="bg-gradient-to-br from-orange-50 to-yellow-100 rounded-2xl p-6 shadow-lg border border-orange-200">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="bg-orange-500 p-2 rounded-full">
-                  <CreditCard className="text-white" size={20} />
-                </div>
-                <h2 className="text-xl font-bold text-orange-900">Expense Breakdown</h2>
-              </div>
-              <div className="bg-white/60 p-4 rounded-xl backdrop-blur-sm">
-                <Chart data={getExpenseChartData()} type="pie" height={200} />
-              </div>
-            </div>
-          )}
-
-          {/* Active EMIs Section */}
-          {emis.length > 0 && (
-            <div className="bg-gradient-to-br from-amber-50 to-orange-100 rounded-2xl p-6 shadow-lg border border-amber-200">
+          {/* Active EMIs - Only show if there are active EMIs */}
+          {emis.filter(emi => calculateRemainingMonths(emi.startDate, emi.monthsRemaining) > 0).length > 0 && (
+            <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
               <div className="flex items-center gap-3 mb-4">
                 <div className="bg-amber-500 p-2 rounded-full">
                   <CreditCard className="text-white" size={20} />
                 </div>
-                <h2 className="text-xl font-bold text-amber-900">Active EMIs</h2>
+                <h2 className="text-xl font-bold text-gray-900">Active EMIs</h2>
               </div>
               <div className="space-y-3">
-                {emis.filter(emi => emi.monthsRemaining > 0).map((emi) => (
-                  <div key={emi._id} className="bg-white/80 p-4 rounded-xl backdrop-blur-sm border border-amber-200">
+                {emis.filter(emi => calculateRemainingMonths(emi.startDate, emi.monthsRemaining) > 0).map((emi) => (
+                  <div key={emi._id} className="bg-amber-50 p-4 rounded-xl border border-amber-200">
                     <div className="flex items-center justify-between mb-2">
-                      <p className="font-semibold text-amber-900 text-lg">{emi.name}</p>
+                      <p className="font-semibold text-amber-900">{emi.name}</p>
                       <span className="bg-amber-500 text-white px-3 py-1 rounded-full text-sm font-medium">
-                        {emi.monthsRemaining} months left
+                        {calculateRemainingMonths(emi.startDate, emi.monthsRemaining)} months
                       </span>
                     </div>
-                    <div className="text-sm text-amber-700 mb-2">
-                      <p className="flex items-center gap-2">
-                        <span className="bg-amber-200 px-2 py-1 rounded-full text-xs">Due: {emi.dueDay}th</span>
-                        <span className="bg-amber-200 px-2 py-1 rounded-full text-xs">Monthly</span>
-                      </p>
-                    </div>
                     <div className="flex items-center justify-between">
-                      <p className="text-xs text-amber-600">
-                        Started: {new Date(emi.startDate).toLocaleDateString()}
-                      </p>
+                      <p className="text-sm text-amber-700">Due: {emi.dueDay}th monthly</p>
                       <p className="font-bold text-amber-800 text-lg">
                         ₹{emi.amount.toLocaleString()}
                       </p>
@@ -463,52 +463,29 @@ export default function Dashboard() {
             </div>
           )}
 
-          {/* Modern Recent Expenses */}
-          <div className="bg-gradient-to-br from-slate-50 to-slate-100 rounded-2xl p-6 shadow-lg border border-slate-200">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="bg-slate-500 p-2 rounded-full">
-                <TrendingDown className="text-white" size={20} />
+          {/* Recent Expenses */}
+          <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-gray-900">Recent Expenses</h2>
+              <div className="bg-slate-100 p-2 rounded-full">
+                <TrendingDown className="text-slate-600" size={20} />
               </div>
-              <h2 className="text-xl font-bold text-slate-900">Recent Expenses</h2>
             </div>
             {recentExpenses.length > 0 ? (
               <div className="space-y-3">
                 {recentExpenses.map((expense) => (
-                  <div key={expense._id} className="bg-white/80 p-4 rounded-xl backdrop-blur-sm border border-slate-200">
-                    <div className="flex items-center justify-between mb-2">
-                      <p className="font-semibold text-slate-900 text-lg">{expense.category}</p>
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => editExpense(expense)}
-                          className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded-lg text-sm font-medium transition-colors"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => deleteExpense(expense._id)}
-                          className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded-lg text-sm font-medium transition-colors"
-                        >
-                          Delete
-                        </button>
-                      </div>
+                  <div key={expense._id} 
+                    className="flex items-center justify-between p-3 bg-gray-50 rounded-xl cursor-pointer hover:bg-gray-100 transition-colors"
+                    onClick={() => {
+                      setSelectedTransaction(expense);
+                      setShowTransactionModal(true);
+                    }}
+                  >
+                    <div className="flex-1">
+                      <p className="font-semibold text-gray-900">{expense.category}</p>
+                      <p className="text-sm text-gray-500">{new Date(expense.date).toLocaleDateString()}</p>
                     </div>
-                    <div className="text-sm text-slate-600 mb-2">
-                      <p className="flex items-center gap-2">
-                        <span className="bg-slate-200 px-2 py-1 rounded-full text-xs">{expense.paymentMode}</span>
-                        {expense.bankAccount && (
-                          <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded-full text-xs">{expense.bankAccount}</span>
-                        )}
-                      </p>
-                      {expense.isRecurring && (
-                        <p className="text-xs text-green-600 font-medium mt-1 flex items-center gap-1">
-                          <span className="animate-spin">🔄</span> {expense.recurringType} recurring
-                        </p>
-                      )}
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <p className="text-xs text-slate-500">
-                        {new Date(expense.date).toLocaleDateString()}
-                      </p>
+                    <div className="flex items-center gap-2">
                       <p className="font-bold text-red-600 text-lg">
                         -{formatCurrency(expense.amount)}
                       </p>
@@ -518,28 +495,43 @@ export default function Dashboard() {
               </div>
             ) : (
               <div className="text-center py-8">
-                <div className="bg-slate-200 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-3">
-                  <TrendingDown className="text-slate-500" size={24} />
+                <div className="bg-gray-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-3">
+                  <TrendingDown className="text-gray-400" size={24} />
                 </div>
-                <p className="text-slate-500 font-medium">No expenses yet</p>
-                <p className="text-slate-400 text-sm">Start tracking your expenses!</p>
+                <p className="text-gray-500 font-medium">No expenses yet</p>
+                <p className="text-gray-400 text-sm">Start tracking your expenses!</p>
               </div>
             )}
           </div>
         </div>
 
-        {/* Floating Action Button - Always Add Expense */}
+        {/* Floating Action Button - Smart Add Button */}
         <div className="fixed bottom-20 right-4 z-50">
-          <button
-            onClick={() => {
-              setAddType('expense');
-              setShowAddModal(true);
-            }}
-            className="bg-red-500 hover:bg-red-600 text-white rounded-full p-4 shadow-lg transition-all duration-200 transform hover:scale-105"
-            title="Add Expense"
-          >
-            <Minus size={24} />
-          </button>
+          <div className="flex flex-col items-end space-y-3">
+            {/* Quick Add Income Button */}
+            <button
+              onClick={() => {
+                setAddType('income');
+                setShowAddModal(true);
+              }}
+              className="bg-gradient-to-br from-green-500 to-green-600 text-white rounded-full p-3 shadow-lg transition-all duration-200 transform hover:scale-105 hover:shadow-xl border-2 border-white"
+              title="Quick Add Income"
+            >
+              <Plus size={18} />
+            </button>
+            
+            {/* Main FAB - Expense */}
+            <button
+              onClick={() => {
+                setAddType('expense');
+                setShowAddModal(true);
+              }}
+              className="bg-gradient-to-br from-red-500 to-red-600 text-white rounded-full p-3 shadow-lg transition-all duration-200 transform hover:scale-105 hover:shadow-xl border-2 border-white"
+              title="Quick Add Expense"
+            >
+              <Minus size={18} />
+            </button>
+          </div>
         </div>
 
         {/* Add Modal */}
@@ -548,7 +540,7 @@ export default function Dashboard() {
             <div className="bg-white rounded-lg w-full max-w-md p-6">
                              <div className="flex items-center justify-between mb-4">
                  <h2 className="text-xl font-bold text-gray-900">
-                   {isEditing ? 'Edit' : 'Add'} {addType === 'expense' ? 'Expense' : 'Income'}
+                   {isEditing ? 'Transaction Details' : 'Add'} {addType === 'expense' ? 'Expense' : 'Income'}
                  </h2>
                 <button
                   onClick={resetForm}
@@ -559,7 +551,31 @@ export default function Dashboard() {
               </div>
               
               <form onSubmit={handleSubmit} className="space-y-4">
-                                 <div className="grid grid-cols-2 gap-3">
+                 {/* Action buttons for editing */}
+                 {isEditing && addType === 'expense' && (
+                   <div className="flex gap-3 mb-4">
+                     <button
+                       type="button"
+                       onClick={() => {
+                         setIsEditing(false);
+                         setEditingId('');
+                         setFormData({ amount: '', category: '', paymentMode: 'Cash', bankAccount: '', note: '', source: '', date: new Date().toISOString().split('T')[0], isRecurring: false, recurringType: 'monthly' });
+                       }}
+                       className="flex-1 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                     >
+                       Edit Transaction
+                     </button>
+                     <button
+                       type="button"
+                       onClick={() => deleteExpense(editingId)}
+                       className="flex-1 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                     >
+                       Delete Transaction
+                     </button>
+                   </div>
+                 )}
+                 
+                 <div className="grid grid-cols-2 gap-3">
                    <div>
                      <label className="block text-sm font-medium text-gray-700 mb-1">
                        Amount
@@ -630,25 +646,38 @@ export default function Dashboard() {
                      </div>
                      
                      {/* Bank Account Details for UPI, Credit Card, Debit Card */}
-                     {(formData.paymentMode === 'UPI' || formData.paymentMode === 'Credit Card') && (
+                     {accounts.length > 0 && (formData.paymentMode === 'UPI' || formData.paymentMode === 'Credit Card') && (
                        <div>
                          <label className="block text-sm font-medium text-gray-700 mb-1">
                            {formData.paymentMode === 'UPI' ? 'Select UPI ID / Bank Account' : 'Select Bank Account'}
+                           {formData.bankAccount && (
+                             <span className="text-sm text-gray-500 ml-2">
+                               Selected: {getAccountName(formData.bankAccount)}
+                             </span>
+                           )}
                          </label>
                          <select
                            required
                            value={formData.bankAccount}
-                           onChange={(e) => setFormData({...formData, bankAccount: e.target.value})}
+                           onChange={(e) => {
+                            const selectedValue = e.target.value;
+                            console.log('Selected value:', selectedValue);
+                            setFormData({...formData, bankAccount: selectedValue});
+                            console.log('Updated formData:', {...formData, bankAccount: selectedValue});
+                          }}
                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                          >
                            <option value="">Select Account</option>
                            {accounts
                              .filter(account => account.type === formData.paymentMode)
-                             .map(account => (
-                               <option key={account._id} value={account.details}>
-                                 {account.name} ({account.details})
-                               </option>
-                             ))}
+                             .map(account => {
+                               console.log('Account:', account);
+                               return (
+                                 <option key={account._id} value={account._id}>
+                                   {account.name} {account.details ? `(${account.details})` : ''}
+                                 </option>
+                               );
+                             })}
                          </select>
                        </div>
                      )}
@@ -739,7 +768,53 @@ export default function Dashboard() {
           </div>
         )}
 
+        {/* Confirmation Modal */}
+        {showConfirmModal && confirmAction && (
+          <ConfirmModal
+            isOpen={showConfirmModal}
+            onClose={() => setShowConfirmModal(false)}
+            onConfirm={handleConfirmAction}
+            title={`Confirm Deletion`}
+            message={`Are you sure you want to delete this ${confirmAction.name}? This action cannot be undone.`}
+            confirmText="Delete"
+            cancelText="Cancel"
+          />
+        )}
+
+        {/* Transaction Details Modal */}
+        <TransactionModal
+          isOpen={showTransactionModal}
+          onClose={() => setShowTransactionModal(false)}
+          transaction={selectedTransaction}
+          accounts={accounts}
+          onEdit={(transaction) => {
+            setShowTransactionModal(false);
+            if ('category' in transaction) {
+              setFormData({
+                amount: transaction.amount.toString(),
+                category: transaction.category,
+                paymentMode: transaction.paymentMode,
+                bankAccount: transaction.bankAccount || '',
+                note: transaction.note || '',
+                source: '',
+                date: new Date(transaction.date).toISOString().split('T')[0],
+                isRecurring: transaction.isRecurring || false,
+                recurringType: transaction.recurringType || 'monthly'
+              });
+              setAddType('expense');
+              setIsEditing(true);
+              setEditingId(transaction._id);
+              setShowAddModal(true);
+            }
+          }}
+          onDelete={(transactionId) => {
+            setShowTransactionModal(false);
+            deleteExpense(transactionId);
+          }}
+        />
+
         <BottomNav />
+        
       </div>
     </>
   );

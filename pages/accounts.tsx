@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import Head from 'next/head';
 import { Plus, CreditCard, Smartphone, DollarSign, Calendar, AlertCircle, X } from 'lucide-react';
 import BottomNav from '../components/BottomNav';
+import ConfirmModal from '../components/ConfirmModal';
 import { formatCurrency } from '../lib/utils';
 import { PaymentAccount, EMI } from '../lib/types';
 import { useAuth } from '../contexts/AuthContext';
@@ -14,6 +15,8 @@ export default function Accounts() {
   const [isEditingEMI, setIsEditingEMI] = useState(false);
   const [editingEMIId, setEditingEMIId] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<{ type: 'delete-emi'; id: string; name: string } | null>(null);
   const [accountForm, setAccountForm] = useState({
     type: 'Cash',
     name: '',
@@ -102,6 +105,20 @@ export default function Accounts() {
     });
   };
 
+  const calculateRemainingMonths = (startDate: string | Date, totalMonths: number) => {
+    const start = new Date(startDate);
+    const today = new Date();
+    
+    // Calculate how many months have passed since start
+    const monthsPassed = (today.getFullYear() - start.getFullYear()) * 12 + (today.getMonth() - start.getMonth());
+    
+    // Calculate remaining months
+    const remaining = totalMonths - monthsPassed;
+    
+    // Return 0 if EMI is completed, otherwise return remaining months
+    return Math.max(0, remaining);
+  };
+
   const upcomingEMIs = getUpcomingEMIs();
 
   const editEMI = (emi: EMI) => {
@@ -119,20 +136,27 @@ export default function Accounts() {
   };
 
   const deleteEMI = async (emiId: string) => {
-    if (window.confirm('Are you sure you want to delete this EMI?')) {
-      try {
-        const response = await fetch(`/api/emi/delete/${emiId}`, {
-          method: 'DELETE',
-        });
+    setConfirmAction({ type: 'delete-emi', id: emiId, name: emis.find(emi => emi._id === emiId)?.name || 'this EMI' });
+    setShowConfirmModal(true);
+  };
 
-        if (response.ok) {
-          fetchData(); // Refresh data
-        } else {
-          console.error('Failed to delete EMI');
-        }
-      } catch (error) {
-        console.error('Error deleting EMI:', error);
+  const handleConfirmAction = async () => {
+    if (!confirmAction) return;
+
+    try {
+      const response = await fetch(`/api/emi/delete/${confirmAction.id}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        setShowConfirmModal(false);
+        setConfirmAction(null);
+        fetchData(); // Refresh data
+      } else {
+        console.error('Failed to delete EMI');
       }
+    } catch (error) {
+      console.error('Error deleting EMI:', error);
     }
   };
 
@@ -308,7 +332,7 @@ export default function Accounts() {
                           <h3 className="font-medium text-gray-900">{emi.name}</h3>
                           <div className="flex items-center gap-2">
                             <span className="text-sm text-gray-600">
-                              {emi.monthsRemaining} months left
+                              {calculateRemainingMonths(emi.startDate, emi.monthsRemaining)} months left
                             </span>
                             <button
                               onClick={() => editEMI(emi)}
@@ -581,6 +605,20 @@ export default function Accounts() {
               </form>
             </div>
           </div>
+        )}
+
+        {/* Confirmation Modal */}
+        {showConfirmModal && confirmAction && (
+          <ConfirmModal
+            isOpen={showConfirmModal}
+            onClose={() => setShowConfirmModal(false)}
+            onConfirm={handleConfirmAction}
+            title="Confirm Deletion"
+            message={`Are you sure you want to delete ${confirmAction.name}? This action cannot be undone.`}
+            confirmText="Delete"
+            cancelText="Cancel"
+            type="danger"
+          />
         )}
 
         <BottomNav />
