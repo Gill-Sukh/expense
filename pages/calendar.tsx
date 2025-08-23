@@ -47,6 +47,9 @@ export default function Calendar() {
       const startDate = startOfMonth(currentMonth);
       const endDate = endOfMonth(currentMonth);
       const currentMonthExpenses = allExpenses.filter((expense: Expense) => {
+        // Only include one-time expenses (not recurring) in current month
+        if (expense.isRecurring) return false;
+        
         const expDate = new Date(expense.date);
         return expDate >= startDate && expDate <= endDate;
       });
@@ -61,14 +64,24 @@ export default function Calendar() {
         const currentMonthNum = currentMonth.getMonth();
         const currentYearNum = currentMonth.getFullYear();
         
-        // Monthly recurring expenses (add to all months)
+        // Monthly recurring expenses (only add if they should appear in current month)
         if (expense.recurringType === 'monthly') {
-          return true;
+          // If started in previous months/years, always show
+          if (expYear < currentYearNum || (expYear === currentYearNum && expMonth < currentMonthNum)) {
+            return true;
+          }
+          // If started in current month, only show if we're past the start day
+          if (expYear === currentYearNum && expMonth === currentMonthNum) {
+            const today = new Date();
+            const startDay = expDate.getDate();
+            return today.getDate() >= startDay;
+          }
+          return false;
         }
         
-        // Yearly recurring expenses (add if in current year)
+        // Yearly recurring expenses (add if in current year and after start date)
         if (expense.recurringType === 'yearly' && expYear === currentYearNum) {
-          return true;
+          return expMonth <= currentMonthNum;
         }
         
         return false;
@@ -109,6 +122,9 @@ export default function Calendar() {
       
       // Filter income for current month and add recurring ones
       const currentMonthIncome = allIncome.filter((inc: Income) => {
+        // Only include one-time income (not recurring) in current month
+        if (inc.isRecurring) return false;
+        
         const incDate = new Date(inc.date);
         return incDate >= startDate && incDate <= endDate;
       });
@@ -123,14 +139,24 @@ export default function Calendar() {
         const currentMonthNum = currentMonth.getMonth();
         const currentYearNum = currentMonth.getFullYear();
         
-        // Monthly recurring income (add to all months)
+        // Monthly recurring income (only add if it should appear in current month)
         if (inc.recurringType === 'monthly') {
-          return true;
+          // If started in previous months/years, always show
+          if (incYear < currentYearNum || (incYear === currentYearNum && incMonth < currentMonthNum)) {
+            return true;
+          }
+          // If started in current month, only show if we're past the start day
+          if (incYear === currentYearNum && incMonth === currentMonthNum) {
+            const today = new Date();
+            const startDay = incDate.getDate();
+            return today.getDate() >= startDay;
+          }
+          return false;
         }
         
-        // Yearly recurring income (add if in current year)
+        // Yearly recurring income (add if in current year and after start date)
         if (inc.recurringType === 'yearly' && incYear === currentYearNum) {
-          return true;
+          return incMonth <= currentMonthNum;
         }
         
         return false;

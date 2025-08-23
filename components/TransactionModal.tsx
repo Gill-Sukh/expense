@@ -57,6 +57,26 @@ export default function TransactionModal({
         return '🎬';
       case 'Health':
         return '🏥';
+      case 'Recharge':
+        return '📱';
+      case 'Room Rent':
+        return '🏠';
+      case 'Groceries':
+        return '🛒';
+      case 'Fuel':
+        return '⛽';
+      case 'Education':
+        return '📚';
+      case 'Insurance':
+        return '🛡️';
+      case 'Taxes':
+        return '💰';
+      case 'Gifts':
+        return '🎁';
+      case 'Travel':
+        return '✈️';
+      case 'Utilities':
+        return '⚡';
       default:
         return '📊';
     }
@@ -72,6 +92,14 @@ export default function TransactionModal({
         return '📈';
       case 'Business':
         return '🏢';
+      case 'Bonus':
+        return '🎯';
+      case 'Rental Income':
+        return '🏠';
+      case 'Interest':
+        return '💰';
+      case 'Commission':
+        return '📊';
       default:
         return '💰';
     }

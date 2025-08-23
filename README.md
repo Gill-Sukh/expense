@@ -1,58 +1,32 @@
-# Finance Tracker Mobile PWA
+# Finance Tracker PWA
 
-A comprehensive Progressive Web App (PWA) for tracking daily expenses and income, built with Next.js and MongoDB.
+A comprehensive Progressive Web App for tracking personal finances, expenses, income, and EMI payments with modern UI and powerful analytics.
 
 ## Features
 
-- 📱 **Mobile-First Design** - Optimized for mobile devices with PWA support
-- 💰 **Expense Tracking** - Track daily expenses with payment modes (Cash, UPI, Credit Card)
-- 💳 **Payment Accounts** - Manage multiple cards and UPI IDs
-- 📊 **Income Tracking** - Monitor income sources and calculate profit/loss
-- 📅 **Calendar Views** - Monthly and yearly calendar views for expenses and income
-- 📈 **Reports & Analytics** - Comprehensive charts and financial insights
-- 🏦 **EMI Tracker** - Track loans, credit cards, vehicles, and other EMIs
-- ⚙️ **Settings** - Customize categories, backup, and currency preferences
-- 🔄 **PWA Support** - Install as a mobile app with offline functionality
+### 📊 **Enhanced Reports & Analytics**
+- **Multi-period Analysis**: Monthly, Quarterly, and Yearly financial reports
+- **Comprehensive Data**: Expenses, Income, and EMI tracking with visual charts
+- **Smart Insights**: AI-powered financial recommendations and budget analysis
+- **Modern Charts**: Interactive pie charts, bar charts, and line charts using Recharts
+- **Financial Metrics**: Savings rate, expense ratios, and 50/30/20 budget rule analysis
+- **EMI Management**: Track loan payments, due dates, and payment status
+- **Trend Analysis**: Visual trend charts showing income vs expenses over time
 
-## Tech Stack
+### 💰 **Core Financial Features**
+1. **expenses** - Daily expense records with categories and payment modes
+2. **income** - Income tracking from multiple sources
+3. **payment_accounts** - Credit cards, UPI IDs, bank accounts
+4. **emi** - EMI tracking for loans with due date management
+5. **categories** - Expense and income categories
+6. **settings** - User preferences and app configuration
 
-- **Frontend**: Next.js 14, React 18, TypeScript
-- **Styling**: Tailwind CSS
-- **Database**: MongoDB
-- **Charts**: Recharts
-- **Icons**: Lucide React
-- **Date Handling**: date-fns
-- **PWA**: Service Worker, Web App Manifest
-
-## Project Structure
-
-```
-finance-tracker-pwa/
-├── components/          # Reusable UI components
-├── lib/                # Database connection and utilities
-├── pages/              # Next.js pages and API routes
-│   ├── api/           # Backend API endpoints
-│   ├── index.tsx      # Dashboard
-│   ├── calendar.tsx   # Calendar view
-│   ├── reports.tsx    # Analytics
-│   ├── accounts.tsx   # Payment accounts
-│   └── settings.tsx   # App settings
-├── public/            # Static assets and PWA files
-├── styles/           # Global styles
-└── package.json
-```
-
-## Database Schema
-
-### Collections
-
-1. **users** - User authentication and profiles
-2. **expenses** - Daily expense records
-3. **income** - Income tracking
-4. **payment_accounts** - Credit cards, UPI IDs, etc.
-5. **emi** - EMI tracking for loans
-6. **categories** - Expense and income categories
-7. **settings** - User preferences
+### 📱 **Mobile-First Design**
+- **Responsive Layout** - Adapts to different screen sizes
+- **Touch-Friendly** - Large buttons and touch targets
+- **Bottom Navigation** - Easy thumb navigation
+- **Fast Loading** - Optimized for mobile networks
+- **Modern UI** - Gradient backgrounds, rounded corners, and shadows
 
 ## Getting Started
 
@@ -67,7 +41,7 @@ finance-tracker-pwa/
 1. **Clone the repository**
    ```bash
    git clone <repository-url>
-   cd finance-tracker-pwa
+   cd expense-mobile
    ```
 
 2. **Install dependencies**
@@ -115,6 +89,8 @@ npm start
 ### Expenses
 - `POST /api/expenses/add` - Add new expense
 - `GET /api/expenses/list` - List expenses with filters
+- `PUT /api/expenses/edit/[id]` - Edit expense
+- `DELETE /api/expenses/delete/[id]` - Delete expense
 
 ### Income
 - `POST /api/income/add` - Add new income
@@ -127,46 +103,51 @@ npm start
 ### EMI Tracking
 - `POST /api/emi/add` - Add EMI record
 - `GET /api/emi/list` - List EMI records
+- `PUT /api/emi/edit/[id]` - Edit EMI record
+- `DELETE /api/emi/delete/[id]` - Delete EMI record
 
-## Mobile-First Design
+## Reports & Analytics
 
-The app is designed with mobile users in mind:
+### Financial Insights
+- **Savings Rate Analysis**: Track your savings percentage
+- **Expense Ratios**: Monitor spending patterns
+- **EMI Health**: Track loan payment status
+- **Budget Analysis**: 50/30/20 rule implementation
+- **Smart Recommendations**: AI-powered financial advice
 
-- **Responsive Layout** - Adapts to different screen sizes
-- **Touch-Friendly** - Large buttons and touch targets
-- **Bottom Navigation** - Easy thumb navigation
-- **Fast Loading** - Optimized for mobile networks
-- **Offline Capable** - Works without internet connection
+### Chart Types
+- **Pie Charts**: Category-wise expense breakdown
+- **Bar Charts**: Payment method distribution
+- **Line Charts**: Income vs expenses trends
+- **Dual Line Charts**: Comparative analysis
 
-## Features in Detail
+### Period Selection
+- **Monthly**: Detailed month-by-month analysis
+- **Quarterly**: Quarterly financial overview
+- **Yearly**: Annual financial summary
 
-### Dashboard
-- Monthly income/expense overview
-- Quick action buttons
-- Recent transactions
-- Expense breakdown chart
+## Technology Stack
 
-### Calendar View
-- Monthly calendar with expense indicators
-- Daily expense details
-- Quick add expense functionality
+- **Frontend**: Next.js, React, TypeScript
+- **Styling**: Tailwind CSS, CSS Modules
+- **Charts**: Recharts (React charting library)
+- **Database**: MongoDB with Mongoose
+- **Authentication**: NextAuth.js
+- **Icons**: Lucide React
+- **PWA**: Service Worker, Manifest
 
-### Reports & Analytics
-- Category-wise expense breakdown
-- Payment mode distribution
-- Monthly trends
-- Custom date range selection
+## Project Structure
 
-### Account Management
-- Multiple payment accounts
-- EMI tracking with due dates
-- Upcoming payment alerts
-
-### Settings
-- Currency preferences
-- Notification settings
-- Theme customization
-- Data export/backup
+```
+expense-mobile/
+├── components/          # Reusable UI components
+├── contexts/           # React contexts (Auth)
+├── lib/               # Utility functions and types
+├── pages/             # Next.js pages and API routes
+├── public/            # Static assets and PWA files
+├── styles/            # Global CSS and Tailwind config
+└── README.md          # Project documentation
+```
 
 ## Contributing
 

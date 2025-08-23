@@ -200,9 +200,12 @@ export default function CalendarView({ expenses, income, onDateClick, selectedDa
         
         {/* Calendar Days */}
         {days.map(day => {
-          const total = getTotalForDate(day);
-          const hasExpenses = total < 0;
-          const hasIncome = total > 0;
+          const dayExpenses = getExpensesForDate(day);
+          const dayIncome = getIncomeForDate(day);
+          const totalExpenses = dayExpenses.reduce((sum, expense) => sum + expense.amount, 0);
+          const totalIncome = dayIncome.reduce((sum, inc) => sum + inc.amount, 0);
+          const hasExpenses = totalExpenses > 0;
+          const hasIncome = totalIncome > 0;
           const hasTransactions = hasExpenses || hasIncome;
           
           return (
@@ -216,6 +219,7 @@ export default function CalendarView({ expenses, income, onDateClick, selectedDa
                 isToday(day) && 'bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg',
                 hasExpenses && !isToday(day) && 'bg-gradient-to-br from-red-50 to-red-100 border-red-200 hover:bg-red-100',
                 hasIncome && !isToday(day) && 'bg-gradient-to-br from-green-50 to-green-100 border-green-200 hover:bg-green-100',
+                hasExpenses && hasIncome && !isToday(day) && 'bg-gradient-to-br from-yellow-50 to-yellow-100 border-yellow-200 hover:bg-yellow-100',
                 !hasTransactions && !isToday(day) && 'bg-gray-50 hover:bg-gray-100 border-gray-200',
                 // Selected state (not today)
                 selectedDate && !isToday(day) && isSameDay(day, selectedDate) && 'ring-2 ring-blue-400 ring-offset-2 bg-blue-50 border-blue-200'
@@ -232,16 +236,29 @@ export default function CalendarView({ expenses, income, onDateClick, selectedDa
               
               {/* Amount Display */}
               {hasTransactions && (
-                <div className={cn(
-                  'text-[9px] font-bold leading-tight px-1 py-0.5 rounded-full w-full text-center',
-                  'max-w-[calc(100%-2px)] overflow-hidden',
-                  isToday(day) 
-                    ? 'bg-white/20 text-white' 
-                    : hasExpenses 
-                      ? 'bg-red-500 text-white shadow-sm'
-                      : 'bg-green-500 text-white shadow-sm'
-                )}>
-                  {formatAmount(Math.abs(total))}
+                <div className="space-y-1">
+                  {hasExpenses && (
+                    <div className={cn(
+                      'text-[9px] font-bold leading-tight px-1 py-0.5 rounded-full w-full text-center',
+                      'max-w-[calc(100%-2px)] overflow-hidden',
+                      isToday(day) 
+                        ? 'bg-red-500/80 text-white' 
+                        : 'bg-red-500 text-white shadow-sm'
+                    )}>
+                      {formatAmount(totalExpenses)}
+                    </div>
+                  )}
+                  {hasIncome && (
+                    <div className={cn(
+                      'text-[9px] font-bold leading-tight px-1 py-0.5 rounded-full w-full text-center',
+                      'max-w-[calc(100%-2px)] overflow-hidden',
+                      isToday(day) 
+                        ? 'bg-green-500/80 text-white' 
+                        : 'bg-green-500 text-white shadow-sm'
+                    )}>
+                      {formatAmount(totalIncome)}
+                    </div>
+                  )}
                 </div>
               )}
 

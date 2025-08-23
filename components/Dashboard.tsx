@@ -8,6 +8,7 @@ import TransactionModal from './TransactionModal';
 import PageHeader from './PageHeader';
 import { formatCurrency } from '../lib/utils';
 import { Expense, Income, PaymentAccount, DashboardStats, EMI } from '../lib/types';
+import { EXPENSE_CATEGORIES, INCOME_SOURCES, PAYMENT_MODES, RECURRING_TYPES } from '../lib/constants';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function Dashboard() {
@@ -110,19 +111,35 @@ export default function Dashboard() {
       const expMonth = expDate.getMonth();
       const expYear = expDate.getFullYear();
       
-      // One-time expenses in current month
-      if (expMonth === currentMonth && expYear === currentYear) {
-        monthlyExpenses += exp.amount;
-      }
-      
-      // Recurring monthly expenses (add to all months)
-      if (exp.isRecurring && exp.recurringType === 'monthly') {
-        monthlyExpenses += exp.amount;
-      }
-      
-      // Recurring yearly expenses (add if in current year)
-      if (exp.isRecurring && exp.recurringType === 'yearly' && expYear === currentYear) {
-        monthlyExpenses += exp.amount;
+      // For recurring expenses, we need to be careful not to double count
+      if (exp.isRecurring) {
+        // Recurring monthly expenses (only add if they should appear in current month)
+        if (exp.recurringType === 'monthly') {
+          // If started in previous months/years, always add
+          if (expYear < currentYear || (expYear === currentYear && expMonth < currentMonth)) {
+            monthlyExpenses += exp.amount;
+          } else if (expYear === currentYear && expMonth === currentMonth) {
+            // Started in current month - only add if we're past the start day
+            const today = new Date();
+            const startDay = expDate.getDate();
+            if (today.getDate() >= startDay) {
+              monthlyExpenses += exp.amount;
+            }
+          }
+        }
+        
+        // Recurring yearly expenses (add if in current year and after start date)
+        if (exp.recurringType === 'yearly' && expYear === currentYear) {
+          // For yearly recurring expenses, only add if we're past the start month
+          if (expMonth <= currentMonth) {
+            monthlyExpenses += exp.amount;
+          }
+        }
+      } else {
+        // One-time expenses in current month (only add if they're NOT recurring)
+        if (expMonth === currentMonth && expYear === currentYear) {
+          monthlyExpenses += exp.amount;
+        }
       }
     });
     
@@ -144,19 +161,35 @@ export default function Dashboard() {
       const incMonth = incDate.getMonth();
       const incYear = incDate.getFullYear();
       
-      // One-time income in current month
-      if (incMonth === currentMonth && incYear === currentYear) {
-        monthlyIncome += inc.amount;
-      }
-      
-      // Recurring monthly income (add to all months)
-      if (inc.isRecurring && inc.recurringType === 'monthly') {
-        monthlyIncome += inc.amount;
-      }
-      
-      // Recurring yearly income (add if in current year)
-      if (inc.isRecurring && inc.recurringType === 'yearly' && incYear === currentYear) {
-        monthlyIncome += inc.amount;
+      // For recurring income, we need to be careful not to double count
+      if (inc.isRecurring) {
+        // Recurring monthly income (only add if it should appear in current month)
+        if (inc.recurringType === 'monthly') {
+          // If started in previous months/years, always add
+          if (incYear < currentYear || (incYear === currentYear && incMonth < currentMonth)) {
+            monthlyIncome += inc.amount;
+          } else if (incYear === currentYear && incMonth === currentMonth) {
+            // Started in current month - only add if we're past the start day
+            const today = new Date();
+            const startDay = incDate.getDate();
+            if (today.getDate() >= startDay) {
+              monthlyIncome += inc.amount;
+            }
+          }
+        }
+        
+        // Recurring yearly income (add if in current year and after start date)
+        if (inc.recurringType === 'yearly' && incYear === currentYear) {
+          // For yearly recurring income, only add if we're past the start month
+          if (incMonth <= currentMonth) {
+            monthlyIncome += inc.amount;
+          }
+        }
+      } else {
+        // One-time income in current month (only add if it's NOT recurring)
+        if (incMonth === currentMonth && incYear === currentYear) {
+          monthlyIncome += inc.amount;
+        }
       }
     });
 
@@ -610,13 +643,9 @@ export default function Dashboard() {
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                       >
                         <option value="">Select Category</option>
-                        <option value="Food">Food</option>
-                        <option value="Transport">Transport</option>
-                        <option value="Shopping">Shopping</option>
-                        <option value="Bills">Bills</option>
-                        <option value="Entertainment">Entertainment</option>
-                        <option value="Health">Health</option>
-                        <option value="Other">Other</option>
+                        {EXPENSE_CATEGORIES.map(category => (
+                          <option key={category.value} value={category.value}>{category.label}</option>
+                        ))}
                       </select>
                     </div>
                     
@@ -630,10 +659,9 @@ export default function Dashboard() {
                          onChange={(e) => setFormData({...formData, paymentMode: e.target.value, bankAccount: ''})}
                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                        >
-                         <option value="Cash">Cash</option>
-                         <option value="UPI">UPI</option>
-                         <option value="Credit Card">Credit Card</option>
-                         <option value="Debit Card">Debit Card</option>
+                         {PAYMENT_MODES.map(mode => (
+                           <option key={mode.value} value={mode.value}>{mode.label}</option>
+                         ))}
                        </select>
                      </div>
                      
@@ -686,11 +714,9 @@ export default function Dashboard() {
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                     >
                       <option value="">Select Source</option>
-                      <option value="Salary">Salary</option>
-                      <option value="Freelance">Freelance</option>
-                      <option value="Investment">Investment</option>
-                      <option value="Business">Business</option>
-                      <option value="Other">Other</option>
+                      {INCOME_SOURCES.map(source => (
+                        <option key={source.value} value={source.value}>{source.label}</option>
+                      ))}
                     </select>
                   </div>
                 )}
@@ -720,8 +746,9 @@ export default function Dashboard() {
                              onChange={(e) => setFormData({...formData, recurringType: e.target.value as 'monthly' | 'yearly'})}
                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                            >
-                             <option value="monthly">Monthly</option>
-                             <option value="yearly">Yearly</option>
+                             {RECURRING_TYPES.map(type => (
+                               <option key={type.value} value={type.value}>{type.label}</option>
+                             ))}
                            </select>
                          </div>
                        )}

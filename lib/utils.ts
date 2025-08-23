@@ -30,3 +30,42 @@ export function getMonthName(date: Date): string {
 export function getYear(date: Date): number {
   return date.getFullYear();
 }
+
+export function formatPercentage(value: number, decimals = 1): string {
+  return `${value.toFixed(decimals)}%`;
+}
+
+export function calculateGrowthRate(current: number, previous: number): number {
+  if (previous === 0) return current > 0 ? 100 : 0;
+  return ((current - previous) / previous) * 100;
+}
+
+export function getQuarterFromMonth(month: number): number {
+  return Math.ceil((month + 1) / 3);
+}
+
+export function getQuarterName(quarter: number): string {
+  const quarterNames = ['Q1 (Jan-Mar)', 'Q2 (Apr-Jun)', 'Q3 (Jul-Sep)', 'Q4 (Oct-Dec)'];
+  return quarterNames[quarter - 1] || '';
+}
+
+export function getDaysInMonth(year: number, month: number): number {
+  return new Date(year, month + 1, 0).getDate();
+}
+
+export function isDateInRange(date: Date, startDate: Date, endDate: Date): boolean {
+  return date >= startDate && date <= endDate;
+}
+
+export function getRelativeDateString(date: Date): string {
+  const now = new Date();
+  const diffTime = Math.abs(now.getTime() - date.getTime());
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  
+  if (diffDays === 0) return 'Today';
+  if (diffDays === 1) return 'Yesterday';
+  if (diffDays < 7) return `${diffDays} days ago`;
+  if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
+  if (diffDays < 365) return `${Math.floor(diffDays / 30)} months ago`;
+  return `${Math.floor(diffDays / 365)} years ago`;
+}
