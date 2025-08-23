@@ -1,47 +1,43 @@
 import { useState, useEffect } from 'react';
 import Head from 'next/head';
-import { Plus, ChevronLeft, ChevronRight, X, Minus } from 'lucide-react';
 import BottomNav from '../components/BottomNav';
 import CalendarView from '../components/CalendarView';
 import PageHeader from '../components/PageHeader';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
 import { formatCurrency } from '../lib/utils';
-import { Expense } from '../lib/types';
+import { Expense, Income } from '../lib/types';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function Calendar() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [income, setIncome] = useState<Income[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  const [showAddModal, setShowAddModal] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [isLoading, setIsLoading] = useState(false);
-  const [formData, setFormData] = useState({
-    amount: '',
-    category: '',
-    paymentMode: 'Cash',
-    bankAccount: '',
-    note: '',
-    isRecurring: false,
-    recurringType: 'monthly' as 'monthly' | 'yearly'
-  });
 
   const { user } = useAuth();
   const userId = user?._id || '';
 
   useEffect(() => {
     if (userId) {
-      fetchExpenses();
+      console.log('Calendar useEffect triggered, currentMonth:', currentMonth);
+      fetchData();
     }
   }, [currentMonth, userId]);
 
-  const fetchExpenses = async () => {
+  const fetchData = async () => {
     if (!userId) return;
     
+    console.log('Fetching data for month:', currentMonth);
     setIsLoading(true);
     try {
-      // Fetch all expenses for the user (not just current month)
-      const response = await fetch(`/api/expenses/list?userId=${userId}`);
-      const allExpenses = await response.json();
+      // Fetch all expenses for the user
+      const expensesRes = await fetch(`/api/expenses/list?userId=${userId}`);
+      const allExpenses = await expensesRes.json();
+      
+      // Fetch all income for the user
+      const incomeRes = await fetch(`/api/income/list?userId=${userId}`);
+      const allIncome = await incomeRes.json();
       
       // Fetch EMIs for the user
       const emiResponse = await fetch(`/api/emi/list?userId=${userId}`);
@@ -98,7 +94,7 @@ export default function Calendar() {
         date: new Date(currentMonth.getFullYear(), currentMonth.getMonth(), emi.dueDay),
         amount: emi.amount,
         category: `EMI - ${emi.name}`,
-        paymentMode: 'Credit Card' as any, // Default payment mode for EMIs
+        paymentMode: 'Credit Card' as any,
         bankAccount: '',
         note: `EMI payment due on ${emi.dueDay}th`,
         emiId: emi._id,
@@ -110,8 +106,44 @@ export default function Calendar() {
       // Combine one-time expenses, recurring expenses, and EMIs
       const combinedExpenses = [...currentMonthExpenses, ...recurringExpenses, ...currentMonthEMIs];
       setExpenses(combinedExpenses);
+      
+      // Filter income for current month and add recurring ones
+      const currentMonthIncome = allIncome.filter((inc: Income) => {
+        const incDate = new Date(inc.date);
+        return incDate >= startDate && incDate <= endDate;
+      });
+      
+      // Add recurring income for the current month
+      const recurringIncome = allIncome.filter((inc: Income) => {
+        if (!inc.isRecurring) return false;
+        
+        const incDate = inc.date instanceof Date ? inc.date : new Date(inc.date);
+        const incMonth = incDate.getMonth();
+        const incYear = incDate.getFullYear();
+        const currentMonthNum = currentMonth.getMonth();
+        const currentYearNum = currentMonth.getFullYear();
+        
+        // Monthly recurring income (add to all months)
+        if (inc.recurringType === 'monthly') {
+          return true;
+        }
+        
+        // Yearly recurring income (add if in current year)
+        if (inc.recurringType === 'yearly' && incYear === currentYearNum) {
+          return true;
+        }
+        
+        return false;
+      });
+      
+      const combinedIncome = [...currentMonthIncome, ...recurringIncome];
+      setIncome(combinedIncome);
+      
+      console.log('Data fetched successfully for month:', currentMonth);
+      console.log('Expenses count:', combinedExpenses.length);
+      console.log('Income count:', combinedIncome.length);
     } catch (error) {
-      console.error('Error fetching expenses:', error);
+      console.error('Error fetching data:', error);
     } finally {
       setIsLoading(false);
     }
@@ -119,72 +151,12 @@ export default function Calendar() {
 
   const handleDateClick = (date: Date) => {
     setSelectedDate(date);
-    // Remove the modal opening - just show the details below
-    // setShowAddModal(true);
   };
 
-  const handleAddExpense = () => {
-    setShowAddModal(true);
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!userId) {
-      alert('Please log in to add expenses');
-      return;
-    }
-    
-    try {
-      const payload = {
-        userId,
-        amount: parseFloat(formData.amount),
-        category: formData.category,
-        paymentMode: formData.paymentMode,
-        bankAccount: formData.bankAccount || null,
-        note: formData.note,
-        date: selectedDate ? selectedDate.toISOString() : new Date().toISOString(),
-        isRecurring: formData.isRecurring,
-        recurringType: formData.isRecurring ? formData.recurringType : null
-      };
-
-      const response = await fetch('/api/expenses/add', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-
-      if (response.ok) {
-        setShowAddModal(false);
-        setFormData({ amount: '', category: '', paymentMode: 'Cash', bankAccount: '', note: '', isRecurring: false, recurringType: 'monthly' });
-        fetchExpenses(); // Refresh data
-      }
-    } catch (error) {
-      console.error('Error adding expense:', error);
-    }
-  };
-
-  const deleteExpense = async (expenseId: string) => {
-    if (window.confirm('Are you sure you want to delete this expense?')) {
-      try {
-        const response = await fetch(`/api/expenses/delete/${expenseId}`, {
-          method: 'DELETE',
-        });
-
-        if (response.ok) {
-          fetchExpenses(); // Refresh data
-        } else {
-          console.error('Failed to delete expense');
-        }
-      } catch (error) {
-        console.error('Error deleting expense:', error);
-      }
-    }
-  };
-
-  const resetForm = () => {
-    setFormData({ amount: '', category: '', paymentMode: 'Cash', bankAccount: '', note: '', isRecurring: false, recurringType: 'monthly' });
-    setShowAddModal(false);
+  const handleMonthChange = (newMonth: Date) => {
+    console.log('Month change requested to:', newMonth);
+    setCurrentMonth(newMonth);
+    setSelectedDate(null); // Reset selected date when month changes
   };
 
   const getExpensesForDate = (date: Date) => {
@@ -206,10 +178,9 @@ export default function Calendar() {
       </Head>
 
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 pb-20">
-        {/* Modern Header */}
         <PageHeader 
-          title="Calendar" 
-          subtitle="Track your daily expenses" 
+          title={`${format(currentMonth, 'MMMM yyyy')}`}
+          subtitle="Monthly Calendar View"
           logo="/image_no_bg.png"
           gradient="blue"
         />
@@ -235,18 +206,23 @@ export default function Calendar() {
             <>
               <CalendarView
                 expenses={expenses}
+                income={income.map(inc => ({
+                  date: inc.date,
+                  amount: inc.amount,
+                  source: inc.source
+                }))}
                 onDateClick={handleDateClick}
                 selectedDate={selectedDate}
+                currentMonth={currentMonth}
+                onMonthChange={handleMonthChange}
               />
 
-              {/* Helpful Guide */}
               <div className="mt-6 text-center">
                 <p className="text-sm text-gray-500">
-                  💡 <strong>Tip:</strong> Click on any day to view expenses. Use the + button to add new expenses.
+                  💡 <strong>Tip:</strong> Click on any day to view expenses for that date.
                 </p>
               </div>
 
-              {/* Modern Monthly Summary */}
               <div className="mt-8 bg-white rounded-[24px] p-6 shadow-xl border border-gray-100">
                 <div className="flex items-center gap-3 mb-6">
                   <div className="w-10 h-10 bg-gradient-to-r from-blue-200 to-indigo-300 rounded-full flex items-center justify-center">
@@ -254,34 +230,14 @@ export default function Calendar() {
                   </div>
                   <div>
                     <h2 className="text-xl font-bold text-gray-900">
-                      {format(currentMonth, 'MMMM yyyy')} Summary
+                        Monthly EMI Overview
                     </h2>
-                    <p className="text-gray-500">Monthly expense overview</p>
+                    <p className="text-gray-500">EMI Overview</p>
                   </div>
                 </div>
                 
-                <div className="grid grid-cols-2 gap-6 mb-6">
-                  <div className="bg-gradient-to-br from-red-100 to-rose-100 p-4 rounded-2xl border border-red-200">
-                    <p className="text-sm text-gray-800 font-medium mb-1">Total Expenses</p>
-                    <p className="text-2xl font-bold text-gray-900">
-                      {formatCurrency(expenses.reduce((sum, exp) => sum + exp.amount, 0))}
-                    </p>
-                  </div>
-                  <div className="bg-gradient-to-br from-blue-100 to-indigo-100 p-4 rounded-2xl border border-blue-200">
-                    <p className="text-sm text-gray-800 font-medium mb-1">Days with Expenses</p>
-                    <p className="text-2xl font-bold text-gray-900">
-                      {new Set(expenses.map(exp => format(new Date(exp.date), 'yyyy-MM-dd'))).size}
-                    </p>
-                  </div>
-                </div>
-                
-                {/* Recurring Expenses Summary */}
                 {expenses.some(exp => exp.isRecurring) && (
                   <div className="pt-6 border-t border-gray-200">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                      <span className="text-amber-500">🔄</span>
-                      Recurring Expenses
-                    </h3>
                     <div className="space-y-3">
                       {expenses
                         .filter(exp => exp.isRecurring)
@@ -306,7 +262,6 @@ export default function Calendar() {
                 )}
               </div>
 
-              {/* Selected Date Details */}
               {selectedDate && (
                  <div className="mt-8 bg-white rounded-[24px] p-6 shadow-xl border border-gray-100">
                    <div className="flex items-center gap-3 mb-6">
@@ -361,15 +316,6 @@ export default function Calendar() {
                                )}
                              </div>
                            )}
-                           
-                           <div className="pt-3 border-t border-gray-200">
-                             <button
-                               onClick={() => deleteExpense(expense._id)}
-                               className="text-red-500 hover:text-red-700 text-xs font-medium hover:bg-red-50 px-2 py-1 rounded-lg transition-colors"
-                             >
-                               Delete Expense
-                             </button>
-                           </div>
                          </div>
                        ))}
                        
@@ -396,177 +342,6 @@ export default function Calendar() {
             </>
           )}
         </div>
-
-        {/* Modern Floating Action Button */}
-        <div className="fixed bottom-20 right-4 z-50">
-          <button
-            onClick={handleAddExpense}
-            className="bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white rounded-full p-4 shadow-xl hover:shadow-2xl transition-all duration-200 transform hover:scale-110 border-2 border-white"
-            title="Add Expense"
-          >
-            <Plus size={24} />
-          </button>
-        </div>
-
-        {/* Add Expense Modal */}
-        {showAddModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg w-full max-w-md p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-bold text-gray-900">
-                  Add Expense
-                  {selectedDate && (
-                    <span className="block text-sm font-normal text-gray-600">
-                      {format(selectedDate, 'EEEE, MMMM d, yyyy')}
-                    </span>
-                  )}
-                </h2>
-                <button
-                  onClick={resetForm}
-                  className="text-gray-400 hover:text-gray-600"
-                >
-                  <X size={24} />
-                </button>
-              </div>
-              
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Amount
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    required
-                    value={formData.amount}
-                    onChange={(e) => setFormData({...formData, amount: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                    placeholder="0.00"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Category
-                  </label>
-                  <select
-                    required
-                    value={formData.category}
-                    onChange={(e) => setFormData({...formData, category: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                  >
-                    <option value="">Select Category</option>
-                    <option value="Food">Food</option>
-                    <option value="Transport">Transport</option>
-                    <option value="Shopping">Shopping</option>
-                    <option value="Bills">Bills</option>
-                    <option value="Entertainment">Entertainment</option>
-                    <option value="Health">Health</option>
-                    <option value="Other">Other</option>
-                  </select>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Payment Mode
-                  </label>
-                  <select
-                    required
-                    value={formData.paymentMode}
-                    onChange={(e) => setFormData({...formData, paymentMode: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                  >
-                    <option value="Cash">Cash</option>
-                    <option value="UPI">UPI</option>
-                    <option value="Credit Card">Credit Card</option>
-                    <option value="Debit Card">Debit Card</option>
-                  </select>
-                </div>
-                
-                {/* Bank Account Details for UPI, Credit Card, Debit Card */}
-                {(formData.paymentMode === 'UPI' || formData.paymentMode === 'Credit Card' || formData.paymentMode === 'Debit Card') && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      {formData.paymentMode === 'UPI' ? 'UPI ID / Bank Account' : 'Bank Account Details'}
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.bankAccount}
-                      onChange={(e) => setFormData({...formData, bankAccount: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                      placeholder={
-                        formData.paymentMode === 'UPI' 
-                          ? 'Enter UPI ID (e.g., name@bank)' 
-                          : 'Enter bank name and last 4 digits'
-                      }
-                    />
-                  </div>
-                )}
-
-                {/* Recurring Options */}
-                <div className="space-y-3">
-                  <div className="flex items-center space-x-3">
-                    <input
-                      type="checkbox"
-                      id="isRecurring"
-                      checked={formData.isRecurring}
-                      onChange={(e) => setFormData({...formData, isRecurring: e.target.checked})}
-                      className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
-                    />
-                    <label htmlFor="isRecurring" className="text-sm font-medium text-gray-700">
-                      Recurring Expense
-                    </label>
-                  </div>
-                  
-                  {formData.isRecurring && (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Recurring Type
-                      </label>
-                      <select
-                        value={formData.recurringType}
-                        onChange={(e) => setFormData({...formData, recurringType: e.target.value as 'monthly' | 'yearly'})}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                      >
-                        <option value="monthly">Monthly</option>
-                        <option value="yearly">Yearly</option>
-                      </select>
-                    </div>
-                  )}
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Note (Optional)
-                  </label>
-                  <textarea
-                    value={formData.note}
-                    onChange={(e) => setFormData({...formData, note: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                    rows={3}
-                    placeholder="Add a note..."
-                  />
-                </div>
-                
-                <div className="flex space-x-3 pt-4">
-                  <button
-                    type="button"
-                    onClick={resetForm}
-                    className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="flex-1 px-4 py-2 bg-gradient-to-r from-red-500 to-rose-600 text-white rounded-lg hover:from-red-600 hover:to-rose-700 font-medium"
-                  >
-                    Add Expense
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
 
         <BottomNav />
       </div>
