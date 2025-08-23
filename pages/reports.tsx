@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import Head from 'next/head';
-import { BarChart3, TrendingUp, TrendingDown, Calendar } from 'lucide-react';
+import { BarChart3, TrendingUp, TrendingDown, DollarSign, Calendar } from 'lucide-react';
 import BottomNav from '../components/BottomNav';
 import Chart from '../components/Chart';
+import PageHeader from '../components/PageHeader';
 import { formatCurrency } from '../lib/utils';
 import { Expense, Income } from '../lib/types';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function Reports() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
@@ -95,12 +97,12 @@ export default function Reports() {
 
       <div className="min-h-screen bg-gray-50 pb-20">
         {/* Header */}
-        <div className="bg-white shadow-sm border-b">
-          <div className="max-w-md mx-auto px-4 py-4">
-            <h1 className="text-2xl font-bold text-gray-900">Reports</h1>
-            <p className="text-gray-600">Analytics and insights</p>
-          </div>
-        </div>
+        <PageHeader 
+          title="Reports" 
+          subtitle="Analytics and insights" 
+          logo="/image_no_bg.png"
+          gradient="blue"
+        />
 
         <div className="max-w-md mx-auto px-4 py-6 space-y-6">
           {/* Period Selector */}

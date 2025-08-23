@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import Head from 'next/head';
-import { Settings, User, Bell, Shield, Download, Globe, Palette, HelpCircle } from 'lucide-react';
+import { Settings, User, Shield, Bell, HelpCircle, LogOut } from 'lucide-react';
 import BottomNav from '../components/BottomNav';
+import PageHeader from '../components/PageHeader';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function SettingsPage() {
   const [notifications, setNotifications] = useState(true);
@@ -29,7 +31,7 @@ export default function SettingsPage() {
     },
     {
       title: 'Data & Backup',
-      icon: Download,
+      icon: Shield,
       items: [
         { name: 'Export Data', description: 'Download your financial data' },
         { name: 'Backup', description: 'Cloud backup settings' },
@@ -55,13 +57,12 @@ export default function SettingsPage() {
       </Head>
 
       <div className="min-h-screen bg-gray-50 pb-20">
-        {/* Header */}
-        <div className="bg-white shadow-sm border-b">
-          <div className="max-w-md mx-auto px-4 py-4">
-            <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
-            <p className="text-gray-600">Configure your preferences</p>
-          </div>
-        </div>
+        <PageHeader 
+          title="Settings" 
+          subtitle="Configure your preferences" 
+          logo="/image_no_bg.png"
+          gradient="blue"
+        />
 
         <div className="max-w-md mx-auto px-4 py-6 space-y-6">
           {/* Quick Settings */}
@@ -95,7 +96,7 @@ export default function SettingsPage() {
               {/* Dark Mode Toggle */}
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
-                  <Palette size={20} className="text-gray-500" />
+                  <Shield size={20} className="text-gray-500" />
                   <div>
                     <p className="font-medium text-gray-900">Dark Mode</p>
                     <p className="text-sm text-gray-600">Switch to dark theme</p>
@@ -118,7 +119,7 @@ export default function SettingsPage() {
               {/* Currency Selector */}
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
-                  <Globe size={20} className="text-gray-500" />
+                  <Shield size={20} className="text-gray-500" />
                   <div>
                     <p className="font-medium text-gray-900">Currency</p>
                     <p className="text-sm text-gray-600">Select your preferred currency</p>

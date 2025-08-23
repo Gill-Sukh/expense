@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import Head from 'next/head';
-import { Plus, TrendingUp, TrendingDown, DollarSign, Calendar, CreditCard, X, Minus, LogOut, User } from 'lucide-react';
+import { Plus, TrendingUp, TrendingDown, DollarSign, Calendar, CreditCard, X, Minus, LogOut, User, BarChart3 } from 'lucide-react';
 import BottomNav from './BottomNav';
 import Chart from './Chart';
 import ConfirmModal from './ConfirmModal';
 import TransactionModal from './TransactionModal';
+import PageHeader from './PageHeader';
 import { formatCurrency } from '../lib/utils';
 import { Expense, Income, PaymentAccount, DashboardStats, EMI } from '../lib/types';
 import { useAuth } from '../contexts/AuthContext';
@@ -368,40 +369,31 @@ export default function Dashboard() {
       </Head>
 
       <div className="min-h-screen bg-gray-50 pb-20">
-        {/* Simple Header */}
-        <div className="bg-white border-b px-4 py-3">
-          <div className="max-w-md mx-auto flex items-center justify-between">
-            <div>
-              <h1 className="text-xl font-semibold text-gray-900">FinanceFlow</h1>
-              <p className="text-sm text-gray-500">Hello, {user?.name}</p>
-            </div>
-            <button
-              onClick={logout}
-              className="text-gray-400 hover:text-gray-600 p-1"
-              title="Logout"
-            >
-              <LogOut size={18} />
-            </button>
-          </div>
-        </div>
+        <PageHeader
+          title="FinanceFlow"
+          subtitle={`Hello, ${user?.name}`}
+          logo="/image_no_bg.png"
+          gradient="blue"
+          onLogout={logout}
+        />
 
         {/* Toast Notification Banner */}
         {toast.show && (
           <div className={`w-full py-3 px-4 shadow-lg ${
             toast.type === 'success' 
-              ? 'bg-gradient-to-r from-green-500 to-emerald-600' 
-              : 'bg-gradient-to-r from-red-500 to-rose-600'
-          } text-white`}>
+              ? 'bg-gradient-to-r from-blue-200 to-indigo-300' 
+              : 'bg-gradient-to-r from-red-200 to-red-300'
+          } text-gray-800`}>
             <div className="max-w-md mx-auto flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className={`w-2 h-2 rounded-full animate-pulse ${
-                  toast.type === 'success' ? 'bg-green-200' : 'bg-red-200'
+                  toast.type === 'success' ? 'bg-blue-400' : 'bg-red-400'
                 }`}></div>
                 <span className="font-medium">{toast.message}</span>
               </div>
               <button
                 onClick={() => setToast({ show: false, message: '', type: 'success' })}
-                className="text-white/80 hover:text-white transition-colors p-1 rounded-full hover:bg-white/10"
+                className="text-gray-700 hover:text-gray-900 transition-colors p-1 rounded-full hover:bg-gray-800/10"
               >
                 <X size={16} />
               </button>
@@ -411,24 +403,24 @@ export default function Dashboard() {
 
         <div className="max-w-md mx-auto px-4 py-6 space-y-6">
           {/* Quick Balance Overview */}
-          <div className="bg-gradient-to-br from-blue-600 to-indigo-700 rounded-3xl p-6 text-white shadow-xl">
+          <div className="bg-gradient-to-br from-blue-200 to-indigo-300 rounded-3xl p-6 text-gray-800 shadow-xl">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h2 className="text-lg font-medium opacity-90">This Month</h2>
-                <p className="text-3xl font-bold">{formatCurrency(stats.monthlyNet)}</p>
+                <h2 className="text-lg font-medium text-gray-800">This Month</h2>
+                <p className="text-3xl font-bold text-gray-900">{formatCurrency(stats.monthlyNet)}</p>
               </div>
-              <div className="bg-white/20 p-3 rounded-full backdrop-blur-sm">
-                <Calendar className="text-white" size={24} />
+              <div className="bg-gray-800/20 p-3 rounded-full backdrop-blur-sm">
+                <Calendar className="text-gray-800" size={24} />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
-              <div className="bg-white/20 p-3 rounded-xl backdrop-blur-sm">
-                <p className="text-sm opacity-80 mb-1">Income</p>
-                <p className="text-lg font-bold">{formatCurrency(stats.monthlyIncome)}</p>
+              <div className="bg-white bg-opacity-20 p-3 rounded-xl backdrop-blur-sm">
+                <p className="text-sm text-green-700 font-medium mb-1">Income</p>
+                <p className="text-lg font-bold text-green-800">{formatCurrency(stats.monthlyIncome)}</p>
               </div>
-              <div className="bg-white/20 p-3 rounded-xl backdrop-blur-sm">
-                <p className="text-sm opacity-80 mb-1">Expenses</p>
-                <p className="text-lg font-bold">{formatCurrency(stats.monthlyExpenses)}</p>
+              <div className="bg-white bg-opacity-20 p-3 rounded-xl backdrop-blur-sm">
+                <p className="text-sm text-red-700 font-medium mb-1">Expenses</p>
+                <p className="text-lg font-bold text-red-800">{formatCurrency(stats.monthlyExpenses)}</p>
               </div>
             </div>
           </div>
@@ -437,17 +429,17 @@ export default function Dashboard() {
           {emis.filter(emi => calculateRemainingMonths(emi.startDate, emi.monthsRemaining) > 0).length > 0 && (
             <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
               <div className="flex items-center gap-3 mb-4">
-                <div className="bg-amber-500 p-2 rounded-full">
+                <div className="bg-gradient-to-r from-amber-500 to-orange-500 p-2 rounded-full">
                   <CreditCard className="text-white" size={20} />
                 </div>
                 <h2 className="text-xl font-bold text-gray-900">Active EMIs</h2>
               </div>
               <div className="space-y-3">
                 {emis.filter(emi => calculateRemainingMonths(emi.startDate, emi.monthsRemaining) > 0).map((emi) => (
-                  <div key={emi._id} className="bg-amber-50 p-4 rounded-xl border border-amber-200">
+                  <div key={emi._id} className="bg-gradient-to-r from-amber-50 to-orange-50 p-4 rounded-xl border border-amber-200">
                     <div className="flex items-center justify-between mb-2">
                       <p className="font-semibold text-amber-900">{emi.name}</p>
-                      <span className="bg-amber-500 text-white px-3 py-1 rounded-full text-sm font-medium">
+                      <span className="bg-gradient-to-r from-amber-500 to-orange-500 text-white px-3 py-1 rounded-full text-sm font-medium">
                         {calculateRemainingMonths(emi.startDate, emi.monthsRemaining)} months
                       </span>
                     </div>
@@ -467,8 +459,8 @@ export default function Dashboard() {
           <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-bold text-gray-900">Recent Expenses</h2>
-              <div className="bg-slate-100 p-2 rounded-full">
-                <TrendingDown className="text-slate-600" size={20} />
+              <div className="bg-gradient-to-r from-purple-500 to-pink-500 p-2 rounded-full">
+                <TrendingDown className="text-white" size={20} />
               </div>
             </div>
             {recentExpenses.length > 0 ? (
@@ -514,7 +506,7 @@ export default function Dashboard() {
                 setAddType('income');
                 setShowAddModal(true);
               }}
-              className="bg-gradient-to-br from-green-500 to-green-600 text-white rounded-full p-3 shadow-lg transition-all duration-200 transform hover:scale-105 hover:shadow-xl border-2 border-white"
+              className="bg-gradient-to-br from-green-500 to-emerald-600 text-white rounded-full p-3 shadow-lg transition-all duration-200 transform hover:scale-105 hover:shadow-xl border-2 border-white"
               title="Quick Add Income"
             >
               <Plus size={18} />
@@ -526,7 +518,7 @@ export default function Dashboard() {
                 setAddType('expense');
                 setShowAddModal(true);
               }}
-              className="bg-gradient-to-br from-red-500 to-red-600 text-white rounded-full p-3 shadow-lg transition-all duration-200 transform hover:scale-105 hover:shadow-xl border-2 border-white"
+              className="bg-gradient-to-br from-red-500 to-rose-600 text-white rounded-full p-3 shadow-lg transition-all duration-200 transform hover:scale-105 hover:shadow-xl border-2 border-white"
               title="Quick Add Expense"
             >
               <Minus size={18} />
@@ -561,14 +553,14 @@ export default function Dashboard() {
                          setEditingId('');
                          setFormData({ amount: '', category: '', paymentMode: 'Cash', bankAccount: '', note: '', source: '', date: new Date().toISOString().split('T')[0], isRecurring: false, recurringType: 'monthly' });
                        }}
-                       className="flex-1 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                       className="flex-1 bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-4 py-2 rounded-lg font-medium transition-colors hover:from-blue-600 hover:to-indigo-700"
                      >
                        Edit Transaction
                      </button>
                      <button
                        type="button"
                        onClick={() => deleteExpense(editingId)}
-                       className="flex-1 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                       className="flex-1 bg-gradient-to-r from-red-500 to-rose-600 text-white px-4 py-2 rounded-lg font-medium transition-colors hover:from-red-600 hover:to-rose-700"
                      >
                        Delete Transaction
                      </button>
@@ -756,13 +748,17 @@ export default function Dashboard() {
                   >
                     Cancel
                   </button>
-                                     <button
+                   <button
                      type="submit"
-                     className="flex-1 px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600"
+                     className={`flex-1 px-4 py-2 rounded-lg font-medium transition-colors ${
+                       addType === 'income' 
+                         ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white hover:from-green-600 hover:to-emerald-700'
+                         : 'bg-gradient-to-r from-red-500 to-rose-600 text-white hover:from-red-600 hover:to-rose-700'
+                     }`}
                    >
                      {isEditing ? 'Update' : 'Add'} {addType === 'expense' ? 'Expense' : 'Income'}
                    </button>
-                </div>
+                 </div>
               </form>
             </div>
           </div>

@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import Head from 'next/head';
-import { Plus, CreditCard, Smartphone, DollarSign, Calendar, AlertCircle, X } from 'lucide-react';
+import { Plus, X, CreditCard, Building2, Wallet } from 'lucide-react';
 import BottomNav from '../components/BottomNav';
 import ConfirmModal from '../components/ConfirmModal';
+import PageHeader from '../components/PageHeader';
 import { formatCurrency } from '../lib/utils';
 import { PaymentAccount, EMI } from '../lib/types';
 import { useAuth } from '../contexts/AuthContext';
@@ -67,9 +68,9 @@ export default function Accounts() {
       case 'Credit Card':
         return <CreditCard size={20} />;
       case 'UPI':
-        return <Smartphone size={20} />;
+        return <Wallet size={20} />; // Changed from Smartphone to Wallet
       case 'Cash':
-        return <DollarSign size={20} />;
+        return <Building2 size={20} />; // Changed from DollarSign to Building2
       case 'Debit Card':
         return <CreditCard size={20} />;
       default:
@@ -257,12 +258,12 @@ export default function Accounts() {
 
       <div className="min-h-screen bg-gray-50 pb-20">
         {/* Header */}
-        <div className="bg-white shadow-sm border-b">
-          <div className="max-w-md mx-auto px-4 py-4">
-            <h1 className="text-2xl font-bold text-gray-900">Accounts</h1>
-            <p className="text-gray-600">Payment accounts & EMI tracking</p>
-          </div>
-        </div>
+        <PageHeader 
+          title="Accounts" 
+          subtitle="Payment accounts & EMI tracking" 
+          logo="/image_no_bg.png"
+          gradient="blue"
+        />
 
         <div className="max-w-md mx-auto px-4 py-6 space-y-6">
           {!userId ? (
@@ -350,7 +351,7 @@ export default function Accounts() {
                         </div>
                         <div className="flex items-center justify-between">
                           <div className="flex items-center space-x-2">
-                            <Calendar size={16} className="text-gray-500" />
+                            <CreditCard size={16} className="text-gray-500" />
                             <span className="text-sm text-gray-600">
                               Due: {emi.dueDay}th of every month
                             </span>
@@ -371,7 +372,7 @@ export default function Accounts() {
               {upcomingEMIs.length > 0 && (
                 <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                   <div className="flex items-center space-x-2 mb-3">
-                    <AlertCircle size={20} className="text-yellow-600" />
+                    <CreditCard size={20} className="text-yellow-600" />
                     <h3 className="font-semibold text-yellow-800">Upcoming EMIs</h3>
                   </div>
                   <div className="space-y-2">
@@ -396,7 +397,7 @@ export default function Accounts() {
                 </div>
                 
                 <div className="bg-white rounded-lg p-4 shadow-sm text-center">
-                  <Calendar className="text-red-500 mx-auto mb-2" size={24} />
+                  <CreditCard className="text-red-500 mx-auto mb-2" size={24} />
                   <p className="text-sm text-gray-600">Active EMIs</p>
                   <p className="text-xl font-bold text-gray-900">{emis.length}</p>
                 </div>
@@ -419,7 +420,7 @@ export default function Accounts() {
             className="bg-green-500 hover:bg-green-600 text-white rounded-full p-3 shadow-lg transition-all duration-200 transform hover:scale-105"
             title="Add EMI"
           >
-            <Calendar size={20} />
+            <CreditCard size={20} />
           </button>
         </div>
 

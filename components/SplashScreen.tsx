@@ -1,5 +1,6 @@
 import React from 'react';
 import { TrendingUp, DollarSign, Shield, Zap } from 'lucide-react';
+import Image from 'next/image';
 
 const SplashScreen: React.FC = () => {
   return (
@@ -8,13 +9,14 @@ const SplashScreen: React.FC = () => {
         {/* Logo */}
         <div className="mb-8">
           <div className="relative inline-block">
-            <div className="w-24 h-24 bg-white bg-opacity-20 rounded-2xl flex items-center justify-center backdrop-blur-sm border border-white border-opacity-30">
-              <div className="relative">
-                <TrendingUp size={48} className="text-white" />
-                <div className="absolute -top-1 -right-1 w-6 h-6 bg-green-400 rounded-full flex items-center justify-center">
-                  <DollarSign size={16} className="text-white" />
-                </div>
-              </div>
+            <div className="w-32 h-32 rounded-3xl border border-white border-opacity-30 flex items-center justify-center overflow-hidden">
+              <Image
+                src="/image.png"
+                alt="FinanceFlow Logo"
+                width={120}
+                height={120}
+                className="object-contain drop-shadow-2xl"
+              />
             </div>
             <div className="absolute -top-2 -right-2 w-8 h-8 bg-yellow-400 rounded-full flex items-center justify-center animate-pulse">
               <Shield size={20} className="text-white" />

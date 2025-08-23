@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Eye, EyeOff, TrendingUp, DollarSign, Shield, Zap } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import Image from 'next/image';
 
 const LoginScreen: React.FC = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -53,13 +54,14 @@ const LoginScreen: React.FC = () => {
         <div className="text-center text-white mb-8">
           <div className="mb-6">
             <div className="relative inline-block">
-              <div className="w-20 h-20 bg-white bg-opacity-20 rounded-2xl flex items-center justify-center backdrop-blur-sm border border-white border-opacity-30">
-                <div className="relative">
-                  <TrendingUp size={40} className="text-white" />
-                  <div className="absolute -top-1 -right-1 w-5 h-5 bg-green-400 rounded-full flex items-center justify-center">
-                    <DollarSign size={12} className="text-white" />
-                  </div>
-                </div>
+              <div className="w-24 h-24 rounded-3xl border border-white border-opacity-30 flex items-center justify-center overflow-hidden">
+                <Image
+                  src="/image.png"
+                  alt="FinanceFlow Logo"
+                  width={96}
+                  height={96}
+                  className="object-contain drop-shadow-xl"
+                />
               </div>
               <div className="absolute -top-2 -right-2 w-6 h-6 bg-yellow-400 rounded-full flex items-center justify-center animate-pulse">
                 <Shield size={16} className="text-white" />

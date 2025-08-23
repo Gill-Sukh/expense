@@ -3,6 +3,7 @@ import Head from 'next/head';
 import { Plus, ChevronLeft, ChevronRight, X, Minus } from 'lucide-react';
 import BottomNav from '../components/BottomNav';
 import CalendarView from '../components/CalendarView';
+import PageHeader from '../components/PageHeader';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
 import { formatCurrency } from '../lib/utils';
 import { Expense } from '../lib/types';
@@ -118,7 +119,8 @@ export default function Calendar() {
 
   const handleDateClick = (date: Date) => {
     setSelectedDate(date);
-    setShowAddModal(true);
+    // Remove the modal opening - just show the details below
+    // setShowAddModal(true);
   };
 
   const handleAddExpense = () => {
@@ -154,7 +156,7 @@ export default function Calendar() {
 
       if (response.ok) {
         setShowAddModal(false);
-                 setFormData({ amount: '', category: '', paymentMode: 'Cash', bankAccount: '', note: '', isRecurring: false, recurringType: 'monthly' });
+        setFormData({ amount: '', category: '', paymentMode: 'Cash', bankAccount: '', note: '', isRecurring: false, recurringType: 'monthly' });
         fetchExpenses(); // Refresh data
       }
     } catch (error) {
@@ -203,48 +205,71 @@ export default function Calendar() {
         <meta name="description" content="Monthly expense calendar view" />
       </Head>
 
-      <div className="min-h-screen bg-gray-50 pb-20">
-        {/* Header */}
-        <div className="bg-white shadow-sm border-b">
-          <div className="max-w-md mx-auto px-4 py-4">
-            <h1 className="text-2xl font-bold text-gray-900">Calendar</h1>
-            <p className="text-gray-600">Monthly expense tracking</p>
-          </div>
-        </div>
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 pb-20">
+        {/* Modern Header */}
+        <PageHeader 
+          title="Calendar" 
+          subtitle="Track your daily expenses" 
+          logo="/image_no_bg.png"
+          gradient="blue"
+        />
 
-        <div className="max-w-md mx-auto px-4 py-6">
+        <div className="max-w-md mx-auto px-6 py-8 -mt-6">
           {!userId ? (
-            <div className="text-center py-8">
-              <p className="text-gray-500">Please log in to view your calendar</p>
+            <div className="text-center py-12">
+              <div className="bg-white rounded-[24px] p-8 shadow-xl">
+                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <span className="text-2xl">📅</span>
+                </div>
+                <p className="text-gray-500 text-lg">Please log in to view your calendar</p>
+              </div>
             </div>
           ) : isLoading ? (
-            <div className="text-center py-8">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500 mx-auto mb-4"></div>
-              <p className="text-gray-500">Loading expenses...</p>
+            <div className="text-center py-12">
+              <div className="bg-white rounded-[24px] p-8 shadow-xl">
+                <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-500 mx-auto mb-4"></div>
+                <p className="text-gray-500 text-lg">Loading your calendar...</p>
+              </div>
             </div>
           ) : (
             <>
               <CalendarView
                 expenses={expenses}
                 onDateClick={handleDateClick}
-                onAddExpense={handleAddExpense}
+                selectedDate={selectedDate}
               />
 
-              {/* Monthly Summary */}
-              <div className="mt-6 bg-white rounded-lg p-4 shadow-sm">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4">
-                  {format(currentMonth, 'MMMM yyyy')} Summary
-                </h2>
-                <div className="grid grid-cols-2 gap-4 mb-4">
+              {/* Helpful Guide */}
+              <div className="mt-6 text-center">
+                <p className="text-sm text-gray-500">
+                  💡 <strong>Tip:</strong> Click on any day to view expenses. Use the + button to add new expenses.
+                </p>
+              </div>
+
+              {/* Modern Monthly Summary */}
+              <div className="mt-8 bg-white rounded-[24px] p-6 shadow-xl border border-gray-100">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-10 h-10 bg-gradient-to-r from-blue-200 to-indigo-300 rounded-full flex items-center justify-center">
+                    <span className="text-gray-800 text-lg">📊</span>
+                  </div>
                   <div>
-                    <p className="text-sm text-gray-600">Total Expenses</p>
-                    <p className="text-xl font-bold text-red-600">
+                    <h2 className="text-xl font-bold text-gray-900">
+                      {format(currentMonth, 'MMMM yyyy')} Summary
+                    </h2>
+                    <p className="text-gray-500">Monthly expense overview</p>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-6 mb-6">
+                  <div className="bg-gradient-to-br from-red-100 to-rose-100 p-4 rounded-2xl border border-red-200">
+                    <p className="text-sm text-gray-800 font-medium mb-1">Total Expenses</p>
+                    <p className="text-2xl font-bold text-gray-900">
                       {formatCurrency(expenses.reduce((sum, exp) => sum + exp.amount, 0))}
                     </p>
                   </div>
-                  <div>
-                    <p className="text-sm text-gray-600">Days with Expenses</p>
-                    <p className="text-xl font-bold text-gray-900">
+                  <div className="bg-gradient-to-br from-blue-100 to-indigo-100 p-4 rounded-2xl border border-blue-200">
+                    <p className="text-sm text-gray-800 font-medium mb-1">Days with Expenses</p>
+                    <p className="text-2xl font-bold text-gray-900">
                       {new Set(expenses.map(exp => format(new Date(exp.date), 'yyyy-MM-dd'))).size}
                     </p>
                   </div>
@@ -252,19 +277,26 @@ export default function Calendar() {
                 
                 {/* Recurring Expenses Summary */}
                 {expenses.some(exp => exp.isRecurring) && (
-                  <div className="pt-4 border-t border-gray-200">
-                    <h3 className="text-sm font-medium text-gray-700 mb-2">Recurring Expenses</h3>
-                    <div className="space-y-2">
+                  <div className="pt-6 border-t border-gray-200">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                      <span className="text-amber-500">🔄</span>
+                      Recurring Expenses
+                    </h3>
+                    <div className="space-y-3">
                       {expenses
                         .filter(exp => exp.isRecurring)
                         .map((expense) => (
-                          <div key={expense._id} className="flex justify-between items-center text-sm">
-                            <div className="flex items-center gap-2">
-                              <span className="text-green-600">🔄</span>
-                              <span className="text-gray-600">{expense.category}</span>
-                              <span className="text-xs text-gray-500">({expense.recurringType})</span>
+                          <div key={expense._id} className="flex justify-between items-center p-3 bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl border border-amber-200">
+                            <div className="flex items-center gap-3">
+                              <span className="text-amber-500">📅</span>
+                              <div>
+                                <span className="text-gray-800 font-medium">{expense.category}</span>
+                                <span className="text-xs text-gray-700 ml-2 bg-white px-2 py-1 rounded-full">
+                                  {expense.recurringType}
+                                </span>
+                              </div>
                             </div>
-                            <span className="font-medium text-red-600">
+                            <span className="font-bold text-gray-900 text-lg">
                               -{formatCurrency(expense.amount)}
                             </span>
                           </div>
@@ -276,69 +308,100 @@ export default function Calendar() {
 
               {/* Selected Date Details */}
               {selectedDate && (
-                 <div className="mt-6 bg-white rounded-lg p-4 shadow-sm">
-                   <h2 className="text-lg font-semibold text-gray-900 mb-4">
-                     {format(selectedDate, 'EEEE, MMMM d, yyyy')}
-                   </h2>
+                 <div className="mt-8 bg-white rounded-[24px] p-6 shadow-xl border border-gray-100">
+                   <div className="flex items-center gap-3 mb-6">
+                     <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-pink-600 rounded-full flex items-center justify-center">
+                       <span className="text-white text-lg">📅</span>
+                     </div>
+                     <div>
+                       <h2 className="text-xl font-bold text-gray-900">
+                         {format(selectedDate, 'EEEE, MMMM d, yyyy')}
+                       </h2>
+                       <p className="text-gray-500">Daily expense details</p>
+                     </div>
+                   </div>
+                   
                    {getExpensesForDate(selectedDate).length > 0 ? (
-                     <div className="space-y-3">
+                     <div className="space-y-4">
                        {getExpensesForDate(selectedDate).map((expense) => (
-                         <div key={expense._id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                           <div>
-                             <div className="flex items-center gap-2 mb-1">
-                               <p className="font-medium text-gray-900">{expense.category}</p>
-                               <div className="flex items-center gap-2">
-                                 {expense.isRecurring && (
-                                   <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">
-                                     🔄 {expense.recurringType}
-                                   </span>
-                                 )}
-                                 <button
-                                   onClick={() => deleteExpense(expense._id)}
-                                   className="text-red-600 hover:text-red-800 text-xs font-medium"
-                                 >
-                                   Delete
-                                 </button>
+                         <div key={expense._id} className="bg-gradient-to-r from-gray-50 to-gray-100 p-4 rounded-2xl border border-gray-200">
+                           <div className="flex items-center justify-between mb-3">
+                             <div className="flex items-center gap-3">
+                               <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                                 <span className="text-blue-600 text-sm">💰</span>
+                               </div>
+                               <div>
+                                 <p className="font-semibold text-gray-900">{expense.category}</p>
+                                 <p className="text-sm text-gray-600">{expense.paymentMode}</p>
                                </div>
                              </div>
-                             <p className="text-sm text-gray-600">{expense.paymentMode}</p>
-                             {expense.bankAccount && (
-                               <p className="text-xs text-gray-500">{expense.bankAccount}</p>
-                             )}
-                             {expense.note && (
-                               <p className="text-xs text-gray-500 mt-1">{expense.note}</p>
-                             )}
+                             <div className="text-right">
+                               <p className="font-bold text-red-600 text-lg">
+                                 -{formatCurrency(expense.amount)}
+                               </p>
+                               {expense.isRecurring && (
+                                 <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">
+                                   🔄 {expense.recurringType}
+                                 </span>
+                               )}
+                             </div>
                            </div>
-                           <div className="text-right">
-                             <p className="font-semibold text-red-600">
-                               -{formatCurrency(expense.amount)}
-                             </p>
+                           
+                           {(expense.bankAccount || expense.note) && (
+                             <div className="pt-3 border-t border-gray-200 space-y-2">
+                               {expense.bankAccount && (
+                                 <p className="text-xs text-gray-500 flex items-center gap-1">
+                                   <span>🏦</span> {expense.bankAccount}
+                                 </p>
+                               )}
+                               {expense.note && (
+                                 <p className="text-xs text-gray-500 flex items-center gap-1">
+                                   <span>📝</span> {expense.note}
+                                 </p>
+                               )}
+                             </div>
+                           )}
+                           
+                           <div className="pt-3 border-t border-gray-200">
+                             <button
+                               onClick={() => deleteExpense(expense._id)}
+                               className="text-red-500 hover:text-red-700 text-xs font-medium hover:bg-red-50 px-2 py-1 rounded-lg transition-colors"
+                             >
+                               Delete Expense
+                             </button>
                            </div>
                          </div>
                        ))}
-                       <div className="pt-3 border-t">
+                       
+                       <div className="bg-gradient-to-r from-red-50 to-red-100 p-4 rounded-2xl border border-red-200">
                          <div className="flex justify-between items-center">
-                           <span className="font-semibold text-gray-900">Total</span>
-                           <span className="font-bold text-red-600">
+                           <span className="font-semibold text-red-800 text-lg">Total for this day</span>
+                           <span className="font-bold text-red-700 text-xl">
                              -{formatCurrency(getTotalForDate(selectedDate))}
                            </span>
                          </div>
                        </div>
                      </div>
                    ) : (
-                     <p className="text-gray-500 text-center py-4">No expenses on this date</p>
+                     <div className="text-center py-8">
+                       <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                         <span className="text-2xl">✨</span>
+                       </div>
+                       <p className="text-gray-500 text-lg">No expenses on this date</p>
+                       <p className="text-gray-400 text-sm">Great job staying on budget!</p>
+                     </div>
                    )}
                  </div>
                )}
-             </>
-           )}
-         </div>
+            </>
+          )}
+        </div>
 
-        {/* Floating Action Button */}
+        {/* Modern Floating Action Button */}
         <div className="fixed bottom-20 right-4 z-50">
           <button
             onClick={handleAddExpense}
-            className="bg-primary-500 hover:bg-primary-600 text-white rounded-full p-4 shadow-lg transition-all duration-200 transform hover:scale-105"
+            className="bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white rounded-full p-4 shadow-xl hover:shadow-2xl transition-all duration-200 transform hover:scale-110 border-2 border-white"
             title="Add Expense"
           >
             <Plus size={24} />
@@ -495,7 +558,7 @@ export default function Calendar() {
                   </button>
                   <button
                     type="submit"
-                    className="flex-1 px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600"
+                    className="flex-1 px-4 py-2 bg-gradient-to-r from-red-500 to-rose-600 text-white rounded-lg hover:from-red-600 hover:to-rose-700 font-medium"
                   >
                     Add Expense
                   </button>
